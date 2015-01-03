@@ -6,19 +6,19 @@ namespace NSettings.Desktop
 {
     public class FileStreamStorageProvider : IStreamStorageProvider
     {
-        private readonly string _path;
+        public string Path { get; }
 
         public FileStreamStorageProvider(string path)
         {
             if (path == null) throw new ArgumentNullException("path");
-            _path = path;
+            Path = path;
         }
 
         public Stream OpenRead()
         {
             try
             {
-                return File.OpenRead(_path);
+                return File.OpenRead(Path);
             }
             catch (FileNotFoundException)
             {
@@ -28,7 +28,7 @@ namespace NSettings.Desktop
 
         public Stream OpenWrite()
         {
-            return File.Open(_path, FileMode.Create);
+            return File.Open(Path, FileMode.Create);
         }
 
         public Task<Stream> OpenReadAsync()
