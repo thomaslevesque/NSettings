@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -7,8 +8,15 @@ namespace NSettings
 {
     public abstract class SettingsProviderBase : ISettingsProvider
     {
+        private readonly IStreamStorageProvider _storageProvider;
         private readonly ConcurrentDictionary<Type, object> _sections = new ConcurrentDictionary<Type, object>();
         private readonly ConcurrentDictionary<Type, string> _sectionNames = new ConcurrentDictionary<Type, string>();
+
+        protected SettingsProviderBase(IStreamStorageProvider storageProvider)
+        {
+            if (storageProvider == null) throw new ArgumentNullException(nameof(storageProvider));
+            _storageProvider = storageProvider;
+        }
 
         public TSettings GetSettings<TSettings>() where TSettings : class, new()
         {
@@ -26,7 +34,12 @@ namespace NSettings
             });
         }
 
-        protected abstract TSettings CreateSection<TSettings>(string sectionName) where TSettings : class, new();
+        protected TSettings CreateSection<TSettings>(string sectionName) where TSettings : class, new()
+        {
+            var section = new TSettings();
+            LoadSection(sectionName, section);
+            return section;
+        }
         protected abstract void LoadSection(string sectionName, object section);
         protected abstract void SaveSection(string sectionName, object section);
 
@@ -48,31 +61,58 @@ namespace NSettings
 
         public void Load()
         {
-            LoadCore();
+            using (var stream = _storageProvider.OpenRead())
+            {
+                if (stream == null)
+                {
+                    LoadDefaults();
+                }
+                else
+                {
+                    LoadCore(stream);
+                }
+            }
             LoadSections();
         }
 
         public async Task LoadAsync()
         {
-            await LoadCoreAsync();
+            using (var stream = await _storageProvider.OpenReadAsync())
+            {
+                if (stream == null)
+                {
+                    LoadDefaults();
+                }
+                else
+                {
+                    await LoadCoreAsync(stream);
+                }
+            }
             LoadSections();
         }
 
         public void Save()
         {
             SaveSections();
-            SaveCore();
+            using (var stream = _storageProvider.OpenWrite())
+            {
+                SaveCore(stream);
+            }
         }
 
-        public Task SaveAsync()
+        public async Task SaveAsync()
         {
             SaveSections();
-            return SaveCoreAsync();
+            using (var stream = await _storageProvider.OpenWriteAsync())
+            {
+                await SaveCoreAsync(stream); 
+            }
         }
 
-        public abstract void LoadCore();
-        public abstract Task LoadCoreAsync();
-        public abstract void SaveCore();
-        public abstract Task SaveCoreAsync();
+        protected abstract void LoadDefaults();
+        protected abstract void LoadCore(Stream stream);
+        protected abstract Task LoadCoreAsync(Stream stream);
+        protected abstract void SaveCore(Stream stream);
+        protected abstract Task SaveCoreAsync(Stream stream);
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System;
+using NSettings;
 using NSettings.Desktop;
 using NSettings.Json;
+using NSettings.Xml;
 
 namespace ConsoleTests
 {
@@ -8,19 +10,18 @@ namespace ConsoleTests
     {
         static void Main()
         {
-            var storage = new FileStreamStorageProvider("config.json");
-            var provider = new JsonSettingsProvider(storage);
+            var provider = GetJsonProvider();
             provider.Load();
 
             var settings = provider.GetSettings<ServerSettings>();
 
-            /*settings.ServerUrl = "http://www.foobar.com/";
+            settings.ServerUrl = "http://www.foobar.com/";
             settings.ProxySettings = new ProxySettings
             {
                 Host = "www.foobarproxy.com",
                 Port = 80
             };
-            provider.Save();*/
+            provider.Save();
 
             DumpSettings(settings);
 
@@ -44,15 +45,29 @@ namespace ConsoleTests
                 Console.WriteLine("\tPassword: {0}", settings.ProxySettings.Password);
             }
         }
+
+        static ISettingsProvider GetJsonProvider()
+        {
+            var storage = new FileStreamStorageProvider("config.json");
+            var provider = new JsonSettingsProvider(storage);
+            return provider;
+        }
+
+        static ISettingsProvider GetXmlProvider()
+        {
+            var storage = new FileStreamStorageProvider("config.xml");
+            var provider = new XmlSettingsProvider(storage);
+            return provider;
+        }
     }
 
-    class ServerSettings
+    public class ServerSettings
     {
         public string ServerUrl { get; set; }
         public ProxySettings ProxySettings { get; set; }
     }
 
-    class ProxySettings
+    public class ProxySettings
     {
         public string Host { get; set; }
         public int? Port { get; set; }

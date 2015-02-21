@@ -8,13 +8,11 @@ namespace NSettings.Json
 {
     public class JsonSettingsProvider : SettingsProviderBase
     {
-        private readonly IStreamStorageProvider _storageProvider;
         private readonly JsonSerializer _serializer;
 
         public JsonSettingsProvider(IStreamStorageProvider storageProvider)
+            : base(storageProvider)
         {
-            if (storageProvider == null) throw new ArgumentNullException("storageProvider");
-            _storageProvider = storageProvider;
             _serializer = JsonSerializer.Create(new JsonSerializerSettings
             {
                 DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate
@@ -23,16 +21,9 @@ namespace NSettings.Json
 
         private JObject _jsonSettings;
 
-        protected override TSettings CreateSection<TSettings>(string sectionName)
-        {
-            var section = new TSettings();
-            LoadSection(sectionName, section);
-            return section;
-        }
-
         protected override void LoadSection(string sectionName, object section)
         {
-            if (section == null) throw new ArgumentNullException("section");
+            if (section == null) throw new ArgumentNullException(nameof(section));
 
             EnsureLoaded();
 
@@ -48,34 +39,31 @@ namespace NSettings.Json
 
         protected override void SaveSection(string sectionName, object section)
         {
-            if (section == null) throw new ArgumentNullException("section");
+            if (section == null) throw new ArgumentNullException(nameof(section));
+
+            EnsureLoaded();
 
             var settings = _jsonSettings ?? new JObject();
             settings[sectionName] = JObject.FromObject(section);
             _jsonSettings = settings;
         }
 
-        public override void LoadCore()
+        protected override void LoadDefaults()
         {
-            using (var stream = _storageProvider.OpenRead())
-            {
-                if (stream == null)
-                {
-                    _jsonSettings = new JObject();
-                    return;
-                }
+            _jsonSettings = new JObject();
+        }
 
-                using (var reader = new StreamReader(stream))
-                {
-                    string json = reader.ReadToEnd();
-                    LoadFromJson(json);
-                }
+        protected override void LoadCore(Stream stream)
+        {
+            using (var reader = new StreamReader(stream))
+            {
+                string json = reader.ReadToEnd();
+                LoadFromJson(json);
             }
         }
 
-        public override async Task LoadCoreAsync()
+        protected override async Task LoadCoreAsync(Stream stream)
         {
-            using (var stream = await _storageProvider.OpenReadAsync())
             using (var reader = new StreamReader(stream))
             {
                 string json = await reader.ReadToEndAsync();
@@ -83,27 +71,17 @@ namespace NSettings.Json
             }
         }
 
-        public override void SaveCore()
+        protected override void SaveCore(Stream stream)
         {
-            using (var stream = _storageProvider.OpenWrite())
+            using (var writer = new StreamWriter(stream))
             {
-                if (stream == null)
-                {
-                    _jsonSettings = new JObject();
-                    return;
-                }
-
-                using (var writer = new StreamWriter(stream))
-                {
-                    string json = SaveToJson();
-                    writer.WriteLine(json);
-                }
+                string json = SaveToJson();
+                writer.WriteLine(json);
             }
         }
 
-        public override async Task SaveCoreAsync()
+        protected override async Task SaveCoreAsync(Stream stream)
         {
-            using (var stream = await _storageProvider.OpenWriteAsync())
             using (var writer = new StreamWriter(stream))
             {
                 string json = SaveToJson();

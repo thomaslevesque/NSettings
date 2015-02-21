@@ -10,7 +10,7 @@ namespace NSettings.Desktop
 
         public FileStreamStorageProvider(string path)
         {
-            if (path == null) throw new ArgumentNullException("path");
+            if (path == null) throw new ArgumentNullException(nameof(path));
             Path = path;
         }
 

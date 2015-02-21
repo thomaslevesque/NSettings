@@ -57,6 +57,10 @@
       <Project>{1F2EA2F5-C8D9-421A-9228-4051A62A8523}</Project>
       <Name>NSettings.Json</Name>
     </ProjectReference>
+    <ProjectReference Include="..\NSettings.Xml\NSettings.Xml.csproj">
+      <Project>{CA3C15A0-0E47-435D-8726-FEE8FE246805}</Project>
+      <Name>NSettings.Xml</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NSettings\NSettings.csproj">
       <Project>{3758B998-0A82-4B47-8889-A6F41E05F5F2}</Project>
       <Name>NSettings</Name>
