@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -127,7 +129,7 @@ namespace NSettings.Xml
 
                 object value = property.GetValue(source);
                 object existingValue = null;
-                if (!IsValue(property.PropertyType))
+                if (!IsValueOrPrimitiveType(property.PropertyType))
                     existingValue = property.GetValue(destination);
 
                 if (existingValue == null)
@@ -135,12 +137,122 @@ namespace NSettings.Xml
                 else
                     CopyObject(value, existingValue);
             }
+
+            if (source is IList)
+            {
+                CopyNonGenericIList((IList)source, (IList)destination);
+            }
+            else if (type.GetTypeInfo().ImplementedInterfaces.Any(IsICollectionOfT))
+            {
+                CopyGenericICollection(source, destination);
+            }
         }
 
-        private static bool IsValue(Type type)
+        private static bool IsValueOrPrimitiveType(Type type)
         {
             var typeInfo = type.GetTypeInfo();
             return typeInfo.IsPrimitive || typeInfo.IsValueType || type == typeof (string);
+        }
+
+        private static bool IsICollectionOfT(Type type)
+        {
+            var typeInfo = type.GetTypeInfo();
+            if (!typeInfo.IsGenericType)
+                return false;
+            var genericTypeDef = typeInfo.GetGenericTypeDefinition();
+            if (genericTypeDef == typeof(ICollection<>))
+                return true;
+            return false;
+        }
+
+        private static void CopyNonGenericIList(IList source, IList destination)
+        {
+            foreach (var item in source)
+            {
+                destination.Add(item);
+            }
+        }
+
+        private static void CopyGenericICollection(object source, object destination)
+        {
+            var iCollectionOfT = source.GetType().GetTypeInfo().ImplementedInterfaces.First(IsICollectionOfT);
+            var elementType = iCollectionOfT.GenericTypeArguments[0];
+            var wrapperType = typeof(GenericListNonGenericCollectionWrapper<>).MakeGenericType(elementType);
+            var ctor = wrapperType.GetTypeInfo().DeclaredConstructors.First();
+            var sourceList = (IList) ctor.Invoke(new[] { source });
+            var destinationList = (IList) ctor.Invoke(new[] { destination });
+            CopyNonGenericIList(sourceList, destinationList);
+        }
+
+        private class GenericListNonGenericCollectionWrapper<T> : IList
+        {
+            private readonly ICollection<T> _innerCollection;
+
+            public GenericListNonGenericCollectionWrapper(ICollection<T> innerCollection)
+            {
+                _innerCollection = innerCollection;
+            }
+
+            public IEnumerator GetEnumerator()
+            {
+                return _innerCollection.GetEnumerator();
+            }
+
+            public void CopyTo(Array array, int index)
+            {
+                _innerCollection.CopyTo((T[])array, index);
+            }
+
+            public int Count => _innerCollection.Count;
+
+            public bool IsSynchronized => false;
+
+            public object SyncRoot { get; } = new object();
+
+            public int Add(object value)
+            {
+                _innerCollection.Add((T)value);
+                return 0;
+            }
+
+            public void Clear()
+            {
+                _innerCollection.Clear();
+            }
+
+            public bool Contains(object value)
+            {
+                return _innerCollection.Contains((T) value);
+            }
+
+            public int IndexOf(object value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Insert(int index, object value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Remove(object value)
+            {
+                _innerCollection.Remove((T) value);
+            }
+
+            public void RemoveAt(int index)
+            {
+                throw new NotSupportedException();
+            }
+
+            public bool IsFixedSize => false;
+            public bool IsReadOnly => _innerCollection.IsReadOnly;
+
+            public object this[int index]
+            {
+                get { throw new NotSupportedException(); }
+                set { throw new NotSupportedException(); }
+            }
         }
     }
 }
