@@ -53,6 +53,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\VersionInfo.cs">
+      <Link>Properties\VersionInfo.cs</Link>
+    </Compile>
     <Compile Include="ISettingsProvider.cs" />
     <Compile Include="IStreamStorageProvider.cs" />
     <Compile Include="SettingsProviderBase.cs" />
